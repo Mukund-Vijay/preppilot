@@ -6,6 +6,7 @@ previous answers, it can ask adaptive follow-ups — the thing that makes this f
 """
 from __future__ import annotations
 
+import json
 import uuid
 
 from .config import MODEL, get_client
@@ -78,3 +79,53 @@ def answer(session_id: str, user_answer: str) -> tuple[str, bool, int]:
     reply = _ask_model(session["messages"])
     session["messages"].append({"role": "assistant", "content": reply})
     return reply, done, session["count"]
+
+
+_FEEDBACK_SYSTEM = (
+    "You are an expert interview coach. You are given a transcript of a mock behavioral "
+    "interview. Evaluate ONLY the candidate's answers, fairly and constructively. "
+    "Return strict JSON with this exact shape:\n"
+    "{\n"
+    '  "overall_score": <integer 1-10>,\n'
+    '  "summary": "<2-3 sentence overall assessment>",\n'
+    '  "strengths": ["<point>", "<point>"],\n'
+    '  "improvements": ["<actionable tip>", "<actionable tip>"],\n'
+    '  "dimensions": [\n'
+    '    {"name": "Communication", "score": <1-10>, "note": "<short note>"},\n'
+    '    {"name": "Structure (STAR)", "score": <1-10>, "note": "<short note>"},\n'
+    '    {"name": "Specificity", "score": <1-10>, "note": "<short note>"}\n'
+    "  ]\n"
+    "}\n"
+    "Be honest but encouraging. Give concrete, specific advice a student can act on."
+)
+
+
+def _transcript(messages: list[dict]) -> str:
+    """Render the conversation as a plain Interviewer/Candidate transcript for scoring."""
+    lines = []
+    for m in messages:
+        if m["role"] == "assistant":
+            lines.append(f"Interviewer: {m['content']}")
+        elif m["role"] == "user":
+            lines.append(f"Candidate: {m['content']}")
+    return "\n".join(lines)
+
+
+def feedback(session_id: str) -> dict:
+    """Score a completed interview and return structured, actionable feedback."""
+    session = _sessions.get(session_id)
+    if session is None:
+        raise KeyError("session not found")
+
+    client = get_client()
+    resp = client.chat.completions.create(
+        model=MODEL,
+        messages=[
+            {"role": "system", "content": _FEEDBACK_SYSTEM},
+            {"role": "user", "content": "Transcript:\n\n" + _transcript(session["messages"])},
+        ],
+        temperature=0.3,
+        max_tokens=800,
+        response_format={"type": "json_object"},  # force valid JSON
+    )
+    return json.loads(resp.choices[0].message.content)

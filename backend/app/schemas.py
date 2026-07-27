@@ -22,3 +22,7 @@ class AnswerResponse(BaseModel):
     message: str          # the interviewer's next line (follow-up or new question)
     done: bool            # True once the interview is over
     question_number: int  # how many questions you've answered so far
+
+
+class FeedbackRequest(BaseModel):
+    session_id: str

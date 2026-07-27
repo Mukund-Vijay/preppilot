@@ -8,7 +8,13 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import interview
-from .schemas import AnswerRequest, AnswerResponse, StartRequest, StartResponse
+from .schemas import (
+    AnswerRequest,
+    AnswerResponse,
+    FeedbackRequest,
+    StartRequest,
+    StartResponse,
+)
 
 app = FastAPI(title="PrepPilot API", version="0.1.0")
 
@@ -47,3 +53,14 @@ def answer(req: AnswerRequest) -> AnswerResponse:
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Could not process answer: {exc}")
     return AnswerResponse(message=message, done=done, question_number=n)
+
+
+@app.post("/api/interview/feedback")
+def feedback(req: FeedbackRequest) -> dict:
+    """Score the completed interview and return structured, actionable feedback."""
+    try:
+        return interview.feedback(req.session_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Session not found — start a new interview.")
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Could not generate feedback: {exc}")
