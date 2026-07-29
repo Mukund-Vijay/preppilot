@@ -14,7 +14,11 @@ MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
 
 def get_client() -> Groq:
-    """Return a ready-to-use Groq client, or a clear error if the key is missing."""
+    """Return a ready-to-use Groq client, or a clear error if the key is missing.
+
+    max_retries lets the SDK automatically retry transient failures (network blips,
+    rate limits, 5xx) with exponential backoff, so a single hiccup doesn't break a flow.
+    """
     if not GROQ_API_KEY:
         raise RuntimeError("GROQ_API_KEY is missing — add it to backend/.env")
-    return Groq(api_key=GROQ_API_KEY)
+    return Groq(api_key=GROQ_API_KEY, max_retries=4, timeout=30.0)

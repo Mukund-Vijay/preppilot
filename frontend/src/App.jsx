@@ -2,33 +2,33 @@ import { useEffect, useRef, useState } from 'react'
 import { api } from './api'
 
 const ROLES = ['Software Engineer', 'Data Analyst', 'Product Manager', 'Frontend Developer']
-const SECONDS_PER_Q = 90
-const TOTAL_Q = 5
+const MODES = [
+  { id: 'mixed', label: 'Mixed', desc: 'Behavioral + technical' },
+  { id: 'behavioral', label: 'Behavioral', desc: 'Experience & teamwork' },
+  { id: 'technical', label: 'Technical', desc: 'Concepts & problem-solving' },
+]
 
 export default function App() {
   const [stage, setStage] = useState('setup') // setup | interview | feedback
   const [role, setRole] = useState('Software Engineer')
+  const [mode, setMode] = useState('mixed')
+  const [resume, setResume] = useState('')
   const [sessionId, setSessionId] = useState(null)
   const [messages, setMessages] = useState([]) // {who:'bot'|'user', text}
   const [input, setInput] = useState('')
   const [qNum, setQNum] = useState(0)
+  const [totalQ, setTotalQ] = useState(8)
   const [done, setDone] = useState(false)
   const [busy, setBusy] = useState(false)
   const [feedback, setFeedback] = useState(null)
   const [error, setError] = useState(null)
-  const [timeLeft, setTimeLeft] = useState(SECONDS_PER_Q)
+  const [timeLeft, setTimeLeft] = useState(120)
+  const [qSeconds, setQSeconds] = useState(120) // budget for the current question
   const logRef = useRef(null)
-
-  const botCount = messages.filter((m) => m.who === 'bot').length
 
   useEffect(() => {
     requestAnimationFrame(() => { if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight })
   }, [messages, busy])
-
-  // Reset the clock each time a new interviewer question arrives.
-  useEffect(() => {
-    if (stage === 'interview' && !done) setTimeLeft(SECONDS_PER_Q)
-  }, [botCount, stage, done])
 
   // Countdown — pauses while the interviewer is "thinking" (busy) or once finished.
   useEffect(() => {
@@ -39,13 +39,17 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft, stage, done, busy])
 
+  const setClock = (secs) => { setQSeconds(secs); setTimeLeft(secs) }
+
   const startInterview = async () => {
     setBusy(true); setError(null)
     try {
-      const res = await api.start(role)
+      const res = await api.start(role, mode, resume)
       setSessionId(res.session_id)
       setMessages([{ who: 'bot', text: res.question }])
+      setTotalQ(res.total_questions)
       setStage('interview'); setDone(false); setQNum(0)
+      setClock(res.seconds)
     } catch (e) { setError(e.message) } finally { setBusy(false) }
   }
 
@@ -59,6 +63,7 @@ export default function App() {
       const res = await api.answer(sessionId, answer)
       setMessages((m) => [...m, { who: 'bot', text: res.message }])
       setQNum(res.question_number); setDone(res.done)
+      if (!res.done) setClock(res.seconds)
     } catch (e) { setError(e.message) } finally { setBusy(false) }
   }
 
@@ -71,17 +76,15 @@ export default function App() {
 
   const reset = () => {
     setStage('setup'); setSessionId(null); setMessages([]); setInput('')
-    setQNum(0); setDone(false); setFeedback(null); setError(null); setTimeLeft(SECONDS_PER_Q)
+    setQNum(0); setDone(false); setFeedback(null); setError(null); setClock(120)
   }
 
-  const onKey = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() }
-  }
+  const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() } }
 
-  const mmss = `${String(Math.floor(timeLeft / 60)).padStart(2, '0')}:${String(timeLeft % 60).padStart(2, '0')}`
+  const mmss = `${String(Math.floor(timeLeft / 60)).padStart(2, '0')}:${String(Math.max(0, timeLeft) % 60).padStart(2, '0')}`
   const timeClass = timeLeft <= 10 ? 'danger' : timeLeft <= 30 ? 'warn' : ''
   const timeColor = timeLeft <= 10 ? 'var(--red)' : timeLeft <= 30 ? 'var(--amber)' : 'var(--accent)'
-  const currentQ = Math.min(done ? qNum : qNum + 1, TOTAL_Q)
+  const currentQ = Math.min(done ? qNum : qNum + 1, totalQ)
 
   return (
     <div className="shell">
@@ -97,11 +100,11 @@ export default function App() {
           <p className="hero-eyebrow">Mock Interview</p>
           <h2 className="hero-title">Practice under real interview pressure.</h2>
           <p className="hero-sub">
-            A timed, adaptive mock interview that starts with your introduction, follows up on your
-            answers, pushes back when they're vague, and scores you at the end.
+            A timed, adaptive mock interview — it starts with your introduction, adapts to your
+            answers, presses when they're vague, and (optionally) tailors questions to your resume.
           </p>
 
-          <p className="field-label">Which role are you interviewing for?</p>
+          <p className="field-label">Role</p>
           <input value={role} onChange={(e) => setRole(e.target.value)} placeholder="e.g. Software Engineer" />
           <div className="role-grid">
             {ROLES.map((r) => (
@@ -109,13 +112,27 @@ export default function App() {
             ))}
           </div>
 
+          <p className="field-label" style={{ marginTop: 20 }}>Interview type</p>
+          <div className="role-grid">
+            {MODES.map((m) => (
+              <button key={m.id} className={`role-card ${mode === m.id ? 'active' : ''}`} onClick={() => setMode(m.id)}>
+                <div style={{ fontWeight: 600 }}>{m.label}</div>
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{m.desc}</div>
+              </button>
+            ))}
+          </div>
+
+          <p className="field-label" style={{ marginTop: 20 }}>Paste your resume <span style={{ opacity: 0.7 }}>(optional — tailors the questions to your experience)</span></p>
+          <textarea value={resume} onChange={(e) => setResume(e.target.value)} rows={4}
+            placeholder="Paste your resume text here to get questions about your actual projects and skills…" />
+
           <button className="primary" onClick={startInterview} disabled={busy || !role.trim()}>
             {busy ? <span className="spinner" /> : 'Start Interview →'}
           </button>
 
           <div className="hero-meta">
-            <div>🎬 Starts with <b>“Tell me about yourself”</b></div>
-            <div>⏱️ <b>{SECONDS_PER_Q}s</b> per question</div>
+            <div>🎬 Opens with <b>your introduction</b></div>
+            <div>⏱️ <b>Variable</b> timing per question</div>
             <div>📊 Scored feedback at the end</div>
           </div>
           {error && <div className="error">⚠ {error}</div>}
@@ -128,7 +145,7 @@ export default function App() {
           <div className="room-top">
             <div className="left">
               <span className="pill">{role}</span>
-              <span className="pill">Question {currentQ} of {TOTAL_Q}</span>
+              <span className="pill">Question {currentQ} of {totalQ}</span>
               <span className="live"><span className="dot" /> Live</span>
             </div>
             {!done && (
@@ -141,7 +158,7 @@ export default function App() {
 
           {!done && (
             <div className="timerbar">
-              <div className="fill" style={{ width: `${(timeLeft / SECONDS_PER_Q) * 100}%`, background: timeColor }} />
+              <div className="fill" style={{ width: `${Math.max(0, (timeLeft / qSeconds) * 100)}%`, background: timeColor }} />
             </div>
           )}
 

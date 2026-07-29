@@ -14,7 +14,7 @@ async function post(path, body) {
 }
 
 export const api = {
-  start: (role) => post('/api/interview/start', { role }),
+  start: (role, mode, resume) => post('/api/interview/start', { role, mode, resume }),
   answer: (session_id, answer) => post('/api/interview/answer', { session_id, answer }),
   feedback: (session_id) => post('/api/interview/feedback', { session_id }),
 }
