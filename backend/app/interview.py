@@ -1,11 +1,13 @@
-"""The interview brain — a structured 3-round mock interview.
+"""The interview brain — a lifelike 3-part mock interview.
 
-Round 1: Technical theory (OOP, DBMS, Networking, OS, DSA + role core)
-Round 2: Coding — the candidate writes pseudocode for a problem
-Round 3: Behavioral — what kind of person the candidate is
+Part 1 (Technical): blends the candidate's real resume work with core fundamentals.
+Part 2 (Coding): one problem, answered in pseudocode.
+Part 3 (Behavioral): what kind of person the candidate is.
 
-It's one continuous conversation with the model; we steer it round-by-round by injecting a
-system instruction at each round boundary, and we report on all three rounds at the end.
+It runs as one natural conversation: the interviewer reacts to answers and follows up, never
+announces which topic it's asking about, and grounds questions in the resume when one is given.
+The number of questions in the technical and behavioral parts is randomized per session; the
+coding part is always exactly one problem.
 """
 from __future__ import annotations
 
@@ -16,76 +18,81 @@ import uuid
 
 from .config import MODEL, get_client
 
+SYSTEM = (
+    "You are an experienced, personable interviewer conducting a realistic mock interview for a "
+    "{role} role. Behave like a real human interviewer, NOT a quiz bot.\n"
+    "How to behave:\n"
+    "- Have a natural conversation. React briefly to what the candidate says, then ask your next "
+    "question. FOLLOW UP on their answers — if they mention a project, a decision, or something "
+    "incomplete or interesting, dig into THAT before moving on.\n"
+    "- NEVER announce topics or transitions. Do NOT say things like 'let's move on to DBMS', 'now "
+    "an OS question', or name the subject area you're testing. Just ask the question naturally.\n"
+    "- Do NOT march through concepts one-question-per-topic like a checklist. Let the conversation flow.\n"
+    "- Ask ONE question at a time, and keep it concise.\n"
+    "- If an answer is vague, shallow, or evasive, press for specifics before moving on.\n"
+    "- When a resume is provided, ground many of your questions in the candidate's REAL projects, "
+    "skills, and decisions — ask them to go deep on what they've actually built.\n"
+    "- Stay professional. Do NOT give feedback or scores during the interview."
+)
+
 ROUNDS = [
-    {
-        "key": "technical",
-        "name": "Technical — Theory",
-        "q": 6,
-        "seconds": 120,
-        "instruction": (
-            "ROUND 1 of 3 — TECHNICAL THEORY. Ask concise conceptual theory questions (NO coding "
-            "problems in this round). Draw from Object-Oriented Programming, DBMS, Computer Networks, "
-            "Operating Systems, and Data Structures & Algorithms, plus core concepts specific to the "
-            "{role} role. One concept per question."
-        ),
-    },
-    {
-        "key": "coding",
-        "name": "Coding — Pseudocode",
-        "q": 3,
-        "seconds": 240,
-        "instruction": (
-            "ROUND 2 of 3 — CODING. Pose ONE clear, self-contained coding problem suitable for a "
-            "{role} and explicitly ask the candidate to write PSEUDOCODE for their approach (not full, "
-            "runnable code). After they answer, ask up to TWO follow-ups about time/space complexity, "
-            "edge cases, or how they'd optimise it, then the round ends."
-        ),
-    },
-    {
-        "key": "behavioral",
-        "name": "Behavioral",
-        "q": 4,
-        "seconds": 90,
-        "instruction": (
-            "ROUND 3 of 3 — BEHAVIORAL. Ask questions to understand what kind of person the candidate "
-            "is: how they work in a team, handle conflict, deal with failure or pressure, and what "
-            "motivates them. NO technical questions in this round."
-        ),
-    },
+    {"key": "technical", "name": "Technical", "seconds": 120, "instruction": (
+        "For this part, probe the candidate's TECHNICAL depth. Blend questions about their actual "
+        "resume projects and decisions with core fundamentals (OOP, DBMS, networking, operating "
+        "systems, DSA, and concepts central to the {role} role). Move fluidly between their real "
+        "experience and the underlying theory, and follow up on what they say."
+    )},
+    {"key": "coding", "name": "Coding", "seconds": 300, "instruction": (
+        "Now give the candidate ONE coding problem suitable for a {role}. Introduce it naturally "
+        "(for example: \"Let's try a quick coding problem\") and ask them to write PSEUDOCODE for "
+        "their approach — not full, runnable code."
+    )},
+    {"key": "behavioral", "name": "Behavioral", "seconds": 120, "instruction": (
+        "Now shift naturally into understanding the candidate as a person — how they work in a team, "
+        "handle conflict, deal with failure or pressure, and what motivates them. Draw on real "
+        "experiences from their resume where you can. No technical questions here."
+    )},
 ]
 
-TOTAL_Q = sum(r["q"] for r in ROUNDS)
 TOTAL_ROUNDS = len(ROUNDS)
 
-# In-memory session store: session_id -> {messages, answered, role}.
+# In-memory session store: session_id -> {messages, answered, role, counts}.
 _sessions: dict[str, dict] = {}
 
 
-def _round_of(idx: int):
-    """Which round does the (0-based) question index fall in? Returns (round_index, round, is_first)."""
+def _pick_counts() -> list[int]:
+    """Randomize how many questions each part gets. Coding is always exactly one problem."""
+    return [random.randint(4, 7), 1, random.randint(3, 5)]
+
+
+def _round_of(idx: int, counts: list[int]):
+    """Which part does the (0-based) question index fall in? Returns (index, round, is_first)."""
     c = 0
-    for i, r in enumerate(ROUNDS):
-        if idx < c + r["q"]:
-            return i, r, (idx == c)
-        c += r["q"]
+    for i, n in enumerate(counts):
+        if idx < c + n:
+            return i, ROUNDS[i], (idx == c)
+        c += n
     return None, None, False
 
 
+def _session_lean(role: str) -> str:
+    """Pick a couple of areas to lean toward this session, for variety — without forcing an order."""
+    areas = [
+        "object-oriented programming", "databases and SQL", "computer networks",
+        "operating systems", "data structures and algorithms",
+        f"the core of the {role} role", "their resume projects",
+    ]
+    random.shuffle(areas)
+    return (f" Lean a little more toward {areas[0]} and {areas[1]} this session, "
+            "but let the candidate's answers guide where you go.")
+
+
 def _system_prompt(role: str, resume: str) -> str:
-    base = (
-        f"You are a professional interviewer running a structured 3-round mock interview for a {role} "
-        "role: Round 1 technical theory, Round 2 a coding/pseudocode question, Round 3 behavioral.\n"
-        "Rules:\n"
-        "- Ask ONE question at a time. Keep it concise (a coding problem may be a little longer).\n"
-        "- Follow the ROUND instruction you are given for what to ask next.\n"
-        "- If an answer is vague, generic, or too short, press once for specifics before moving on.\n"
-        "- Ask varied, non-obvious questions. Do NOT default to the same predictable textbook "
-        "questions every time — deliberately vary topics and difficulty so each session feels fresh.\n"
-        "- Stay professional. Do NOT give feedback or scores during the interview."
-    )
+    base = SYSTEM.format(role=role)
     if resume.strip():
         base += (
-            "\n\nCandidate resume — tailor questions to their real experience where relevant:\n"
+            "\n\nThe candidate's RESUME is below — treat it as central to the interview. Ask them to "
+            "go deep on their real projects, skills, and decisions from it throughout.\n"
             "--- RESUME ---\n" + resume.strip()[:4000] + "\n--- END RESUME ---"
         )
     return base
@@ -93,16 +100,18 @@ def _system_prompt(role: str, resume: str) -> str:
 
 def _round_instruction(round_dict: dict, role: str, first_overall: bool) -> str:
     instr = round_dict["instruction"].format(role=role)
+    if round_dict["key"] == "technical":
+        instr += _session_lean(role)
     if first_overall:
-        return instr + " Begin with a one-line professional greeting, then ask your first question."
-    return (
-        "The previous round is complete. " + instr +
-        " Start with a one-line transition announcing this new round, then ask your first question."
-    )
+        instr += (
+            " Open with a brief, warm one-line greeting. Then, if a resume is available, make your "
+            "first question about a specific project or skill from it; otherwise, ask the candidate "
+            "to briefly introduce themselves."
+        )
+    return instr
 
 
 def _complete(**kwargs):
-    """Call Groq with a few retries so a transient network blip doesn't surface as an error."""
     last_err = None
     for attempt in range(3):
         try:
@@ -114,34 +123,23 @@ def _complete(**kwargs):
 
 
 def _ask_model(messages: list[dict]) -> str:
-    # Higher temperature = more question variety between sessions.
+    # Higher temperature = more variety between sessions.
     resp = _complete(model=MODEL, messages=messages, temperature=0.95, max_tokens=350)
     return resp.choices[0].message.content.strip()
 
 
-def _tech_emphasis(role: str) -> str:
-    """Randomly reorder the technical focus areas so each session emphasizes different topics."""
-    areas = [
-        "Object-Oriented Programming", "DBMS and SQL", "Computer Networks",
-        "Operating Systems", "Data Structures and Algorithms",
-        f"core concepts specific to the {role} role",
-    ]
-    random.shuffle(areas)
-    return " For THIS session, draw questions across these areas in roughly this order: " + ", ".join(areas) + "."
-
-
 def start(role: str, resume: str = "") -> tuple:
     """Begin the interview. Returns (session_id, question, seconds, total_q, round_name, round_index)."""
+    counts = _pick_counts()
     messages = [{"role": "system", "content": _system_prompt(role, resume)}]
     r = ROUNDS[0]
-    instr = _round_instruction(r, role, first_overall=True) + _tech_emphasis(role)
-    messages.append({"role": "system", "content": instr})
+    messages.append({"role": "system", "content": _round_instruction(r, role, first_overall=True)})
     question = _ask_model(messages)
     messages.append({"role": "assistant", "content": question})
 
     session_id = str(uuid.uuid4())
-    _sessions[session_id] = {"messages": messages, "answered": 0, "role": role}
-    return session_id, question, r["seconds"], TOTAL_Q, r["name"], 1
+    _sessions[session_id] = {"messages": messages, "answered": 0, "role": role, "counts": counts}
+    return session_id, question, r["seconds"], sum(counts), r["name"], 1
 
 
 def answer(session_id: str, user_answer: str) -> tuple:
@@ -157,8 +155,9 @@ def answer(session_id: str, user_answer: str) -> tuple:
     session["answered"] += 1
     n = session["answered"]
     role = session["role"]
+    counts = session["counts"]
 
-    if n >= TOTAL_Q:
+    if n >= sum(counts):
         session["messages"].append({
             "role": "system",
             "content": "That was the final question. Warmly thank the candidate in 1-2 sentences and "
@@ -168,7 +167,7 @@ def answer(session_id: str, user_answer: str) -> tuple:
         session["messages"].append({"role": "assistant", "content": reply})
         return reply, True, n, 0, ROUNDS[-1]["name"], TOTAL_ROUNDS
 
-    round_i, r, is_first = _round_of(n)  # the next question is index n
+    round_i, r, is_first = _round_of(n, counts)  # next question is index n
     if is_first:
         session["messages"].append({"role": "system", "content": _round_instruction(r, role, first_overall=False)})
 
@@ -178,15 +177,15 @@ def answer(session_id: str, user_answer: str) -> tuple:
 
 
 _FEEDBACK_SYSTEM = (
-    "You are an expert interview coach. You are given a transcript of a 3-round mock interview "
-    "(Round 1 Technical theory, Round 2 Coding/pseudocode, Round 3 Behavioral). Evaluate ONLY the "
-    "candidate's answers, fairly and constructively. Return strict JSON with this exact shape:\n"
+    "You are an expert interview coach. You are given a transcript of a 3-part mock interview "
+    "(Technical, Coding/pseudocode, Behavioral). Evaluate ONLY the candidate's answers, fairly and "
+    "constructively. Return strict JSON with this exact shape:\n"
     "{\n"
     '  "overall_score": <integer 1-10>,\n'
     '  "summary": "<2-3 sentence overall assessment>",\n'
     '  "rounds": [\n'
-    '    {"name": "Technical — Theory", "score": <1-10>, "note": "<short note>"},\n'
-    '    {"name": "Coding — Pseudocode", "score": <1-10>, "note": "<short note>"},\n'
+    '    {"name": "Technical", "score": <1-10>, "note": "<short note>"},\n'
+    '    {"name": "Coding", "score": <1-10>, "note": "<short note>"},\n'
     '    {"name": "Behavioral", "score": <1-10>, "note": "<short note>"}\n'
     "  ],\n"
     '  "strengths": ["<point>", "<point>"],\n'
@@ -207,7 +206,7 @@ def _transcript(messages: list[dict]) -> str:
 
 
 def feedback(session_id: str) -> dict:
-    """Score the completed 3-round interview and return a structured report."""
+    """Score the completed interview and return a structured report."""
     session = _sessions.get(session_id)
     if session is None:
         raise KeyError("session not found")
