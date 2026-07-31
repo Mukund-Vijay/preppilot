@@ -10,6 +10,7 @@ system instruction at each round boundary, and we report on all three rounds at 
 from __future__ import annotations
 
 import json
+import random
 import time
 import uuid
 
@@ -19,7 +20,7 @@ ROUNDS = [
     {
         "key": "technical",
         "name": "Technical — Theory",
-        "q": 4,
+        "q": 6,
         "seconds": 120,
         "instruction": (
             "ROUND 1 of 3 — TECHNICAL THEORY. Ask concise conceptual theory questions (NO coding "
@@ -31,19 +32,19 @@ ROUNDS = [
     {
         "key": "coding",
         "name": "Coding — Pseudocode",
-        "q": 2,
+        "q": 3,
         "seconds": 240,
         "instruction": (
             "ROUND 2 of 3 — CODING. Pose ONE clear, self-contained coding problem suitable for a "
             "{role} and explicitly ask the candidate to write PSEUDOCODE for their approach (not full, "
-            "runnable code). After they answer, ask exactly ONE follow-up about time/space complexity "
-            "or edge cases, then the round ends."
+            "runnable code). After they answer, ask up to TWO follow-ups about time/space complexity, "
+            "edge cases, or how they'd optimise it, then the round ends."
         ),
     },
     {
         "key": "behavioral",
         "name": "Behavioral",
-        "q": 3,
+        "q": 4,
         "seconds": 90,
         "instruction": (
             "ROUND 3 of 3 — BEHAVIORAL. Ask questions to understand what kind of person the candidate "
@@ -78,6 +79,8 @@ def _system_prompt(role: str, resume: str) -> str:
         "- Ask ONE question at a time. Keep it concise (a coding problem may be a little longer).\n"
         "- Follow the ROUND instruction you are given for what to ask next.\n"
         "- If an answer is vague, generic, or too short, press once for specifics before moving on.\n"
+        "- Ask varied, non-obvious questions. Do NOT default to the same predictable textbook "
+        "questions every time — deliberately vary topics and difficulty so each session feels fresh.\n"
         "- Stay professional. Do NOT give feedback or scores during the interview."
     )
     if resume.strip():
@@ -111,15 +114,28 @@ def _complete(**kwargs):
 
 
 def _ask_model(messages: list[dict]) -> str:
-    resp = _complete(model=MODEL, messages=messages, temperature=0.7, max_tokens=350)
+    # Higher temperature = more question variety between sessions.
+    resp = _complete(model=MODEL, messages=messages, temperature=0.95, max_tokens=350)
     return resp.choices[0].message.content.strip()
+
+
+def _tech_emphasis(role: str) -> str:
+    """Randomly reorder the technical focus areas so each session emphasizes different topics."""
+    areas = [
+        "Object-Oriented Programming", "DBMS and SQL", "Computer Networks",
+        "Operating Systems", "Data Structures and Algorithms",
+        f"core concepts specific to the {role} role",
+    ]
+    random.shuffle(areas)
+    return " For THIS session, draw questions across these areas in roughly this order: " + ", ".join(areas) + "."
 
 
 def start(role: str, resume: str = "") -> tuple:
     """Begin the interview. Returns (session_id, question, seconds, total_q, round_name, round_index)."""
     messages = [{"role": "system", "content": _system_prompt(role, resume)}]
     r = ROUNDS[0]
-    messages.append({"role": "system", "content": _round_instruction(r, role, first_overall=True)})
+    instr = _round_instruction(r, role, first_overall=True) + _tech_emphasis(role)
+    messages.append({"role": "system", "content": instr})
     question = _ask_model(messages)
     messages.append({"role": "assistant", "content": question})
 
