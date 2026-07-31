@@ -4,10 +4,10 @@ Try it live in the auto-generated docs at http://localhost:8000/docs
 """
 from __future__ import annotations
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
-from . import interview
+from . import interview, resume as resume_mod
 from .schemas import (
     AnswerRequest,
     AnswerResponse,
@@ -29,6 +29,24 @@ app.add_middleware(
 @app.get("/api/health")
 def health() -> dict:
     return {"status": "ok"}
+
+
+@app.post("/api/resume/extract")
+async def extract_resume(file: UploadFile = File(...)) -> dict:
+    """Read an uploaded resume (PDF/DOCX/TXT) and return its extracted text."""
+    data = await file.read()
+    if len(data) > 5_000_000:
+        raise HTTPException(status_code=413, detail="File too large (max 5 MB).")
+    try:
+        text = resume_mod.extract_text(file.filename or "", data)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Could not read the file: {exc}")
+    if not text.strip():
+        raise HTTPException(status_code=422,
+                            detail="No text found — if it's a scanned PDF, paste the text instead.")
+    return {"text": text[:8000], "filename": file.filename}
 
 
 @app.post("/api/interview/start", response_model=StartResponse)

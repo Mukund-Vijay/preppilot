@@ -60,6 +60,14 @@ textarea { resize: vertical; line-height: 1.6; }
 input:focus, textarea:focus { border-color: var(--sage); }
 input::placeholder, textarea::placeholder { color: var(--muted); }
 
+.upload-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.upload-btn { display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  border: 1px dashed var(--sage); color: var(--sage-accent); background: transparent;
+  padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: 600; }
+.upload-btn:hover { background: color-mix(in srgb, var(--sage) 10%, transparent); }
+.upload-status { font-size: 13px; color: var(--sage-accent); font-weight: 600; }
+.upload-err { font-size: 13px; color: #c14b3f; }
+
 .opt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
 .opt { text-align: left; cursor: pointer; padding: 13px 15px; border-radius: 8px; background: var(--field);
   border: 1px solid var(--border); color: var(--ink); font-family: inherit; font-size: 14px; font-weight: 500; }

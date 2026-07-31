@@ -8,6 +8,9 @@ export default function App() {
   const [stage, setStage] = useState('setup')
   const [role, setRole] = useState('Software Engineer')
   const [resume, setResume] = useState('')
+  const [resumeName, setResumeName] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const [uploadErr, setUploadErr] = useState(null)
   const [sessionId, setSessionId] = useState(null)
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
@@ -44,6 +47,17 @@ export default function App() {
   }, [timeLeft, stage, done, busy])
 
   const setClock = (secs) => { setQSeconds(secs); setTimeLeft(secs) }
+
+  const onFile = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true); setUploadErr(null)
+    try {
+      const res = await api.uploadResume(file)
+      setResume(res.text); setResumeName(res.filename || file.name)
+    } catch (err) { setUploadErr(err.message); setResumeName('') }
+    finally { setUploading(false); e.target.value = '' }
+  }
 
   const startInterview = async () => {
     setBusy(true); setError(null)
@@ -112,9 +126,17 @@ export default function App() {
             ))}
           </div>
 
-          <label className="field-label">Paste your resume (optional)</label>
+          <label className="field-label">Resume (optional — tailors the questions to you)</label>
+          <div className="upload-row">
+            <label className="upload-btn">
+              <input type="file" accept=".pdf,.docx,.txt" onChange={onFile} disabled={uploading} hidden />
+              {uploading ? 'Reading…' : 'Upload PDF, DOCX, or TXT'}
+            </label>
+            {resumeName && <span className="upload-status">✓ {resumeName}</span>}
+            {uploadErr && <span className="upload-err">{uploadErr}</span>}
+          </div>
           <textarea value={resume} onChange={(e) => setResume(e.target.value)} rows={4}
-            placeholder="Paste your resume text to get questions about your actual projects and skills…" />
+            placeholder="…or paste your resume text here" />
 
           <button className="btn full" onClick={startInterview} disabled={busy || !role.trim()}>
             {busy ? <span className="spinner" /> : 'Start interview'}
