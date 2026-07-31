@@ -35,24 +35,30 @@ def health() -> dict:
 def start(req: StartRequest) -> StartResponse:
     """Begin an interview for a role. Returns a session_id + the first question."""
     try:
-        session_id, question, seconds, total = interview.start(req.role, req.mode, req.resume)
+        session_id, question, seconds, total, round_name, round_i = interview.start(req.role, req.resume)
     except RuntimeError as exc:  # missing API key
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:  # model/network error
         raise HTTPException(status_code=502, detail=f"Interview failed to start: {exc}")
-    return StartResponse(session_id=session_id, question=question, seconds=seconds, total_questions=total)
+    return StartResponse(
+        session_id=session_id, question=question, seconds=seconds, total_questions=total,
+        total_rounds=interview.TOTAL_ROUNDS, round=round_name, round_index=round_i,
+    )
 
 
 @app.post("/api/interview/answer", response_model=AnswerResponse)
 def answer(req: AnswerRequest) -> AnswerResponse:
     """Submit an answer; get the interviewer's adaptive follow-up or next question."""
     try:
-        message, done, n, seconds = interview.answer(req.session_id, req.answer)
+        message, done, n, seconds, round_name, round_i = interview.answer(req.session_id, req.answer)
     except KeyError:
         raise HTTPException(status_code=404, detail="Session not found — start a new interview.")
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Could not process answer: {exc}")
-    return AnswerResponse(message=message, done=done, question_number=n, seconds=seconds)
+    return AnswerResponse(
+        message=message, done=done, question_number=n, seconds=seconds,
+        round=round_name, round_index=round_i,
+    )
 
 
 @app.post("/api/interview/feedback")

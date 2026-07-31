@@ -1,8 +1,11 @@
-"""The interview brain.
+"""The interview brain — a structured 3-round mock interview.
 
-An interview is a *conversation*, so we keep the full message history per session and feed
-it back to the model each turn — that's what lets it ask adaptive follow-ups. The mode,
-optional resume, and per-question time budgets are all injected here.
+Round 1: Technical theory (OOP, DBMS, Networking, OS, DSA + role core)
+Round 2: Coding — the candidate writes pseudocode for a problem
+Round 3: Behavioral — what kind of person the candidate is
+
+It's one continuous conversation with the model; we steer it round-by-round by injecting a
+system instruction at each round boundary, and we report on all three rounds at the end.
 """
 from __future__ import annotations
 
@@ -12,146 +15,172 @@ import uuid
 
 from .config import MODEL, get_client
 
-MAX_QUESTIONS = 8
+ROUNDS = [
+    {
+        "key": "technical",
+        "name": "Technical — Theory",
+        "q": 4,
+        "seconds": 120,
+        "instruction": (
+            "ROUND 1 of 3 — TECHNICAL THEORY. Ask concise conceptual theory questions (NO coding "
+            "problems in this round). Draw from Object-Oriented Programming, DBMS, Computer Networks, "
+            "Operating Systems, and Data Structures & Algorithms, plus core concepts specific to the "
+            "{role} role. One concept per question."
+        ),
+    },
+    {
+        "key": "coding",
+        "name": "Coding — Pseudocode",
+        "q": 2,
+        "seconds": 240,
+        "instruction": (
+            "ROUND 2 of 3 — CODING. Pose ONE clear, self-contained coding problem suitable for a "
+            "{role} and explicitly ask the candidate to write PSEUDOCODE for their approach (not full, "
+            "runnable code). After they answer, ask exactly ONE follow-up about time/space complexity "
+            "or edge cases, then the round ends."
+        ),
+    },
+    {
+        "key": "behavioral",
+        "name": "Behavioral",
+        "q": 3,
+        "seconds": 90,
+        "instruction": (
+            "ROUND 3 of 3 — BEHAVIORAL. Ask questions to understand what kind of person the candidate "
+            "is: how they work in a team, handle conflict, deal with failure or pressure, and what "
+            "motivates them. NO technical questions in this round."
+        ),
+    },
+]
 
-# Per-question time budgets (seconds), indexed by question number. Varying the time by
-# question type makes the interview feel real instead of a rigid fixed clock — technical
-# questions get more thinking time, the intro gets a little extra, etc.
-TIME_PLANS = {
-    "behavioral": [120, 90, 100, 90, 110, 90, 100, 90],
-    "technical": [120, 150, 180, 150, 170, 150, 180, 160],
-    "mixed": [120, 90, 150, 100, 160, 90, 150, 110],
-}
+TOTAL_Q = sum(r["q"] for r in ROUNDS)
+TOTAL_ROUNDS = len(ROUNDS)
 
-_MODE_RULES = {
-    "behavioral": (
-        "Run a BEHAVIORAL interview: focus on past experiences, teamwork, conflict, ownership, "
-        "and how they handled real situations."
-    ),
-    "technical": (
-        "Run a TECHNICAL interview for this role: ask about core concepts, trade-offs, debugging "
-        "approaches, and how they would design or reason through problems. Ask them to explain "
-        "their thinking out loud. Do NOT require them to write or run actual code."
-    ),
-    "mixed": (
-        "Run a realistic MIXED interview: after the introduction, alternate between behavioral "
-        "questions and technical questions relevant to the role, and dig into their background."
-    ),
-}
-
-# In-memory session store: session_id -> {messages, count, role, mode}.
+# In-memory session store: session_id -> {messages, answered, role}.
 _sessions: dict[str, dict] = {}
 
 
-def _seconds_for(mode: str, index: int) -> int:
-    plan = TIME_PLANS.get(mode, TIME_PLANS["mixed"])
-    return plan[min(index, len(plan) - 1)]
+def _round_of(idx: int):
+    """Which round does the (0-based) question index fall in? Returns (round_index, round, is_first)."""
+    c = 0
+    for i, r in enumerate(ROUNDS):
+        if idx < c + r["q"]:
+            return i, r, (idx == c)
+        c += r["q"]
+    return None, None, False
 
 
-def _system_prompt(role: str, mode: str, resume: str) -> str:
-    """The 'character' and rules for the interviewer — mode + resume shape the whole session."""
+def _system_prompt(role: str, resume: str) -> str:
     base = (
-        f"You are a professional interviewer conducting a realistic, lightly pressured mock "
-        f"interview for a {role} role. Keep the tone crisp and professional.\n"
-        f"{_MODE_RULES.get(mode, _MODE_RULES['mixed'])}\n"
+        f"You are a professional interviewer running a structured 3-round mock interview for a {role} "
+        "role: Round 1 technical theory, Round 2 a coding/pseudocode question, Round 3 behavioral.\n"
         "Rules:\n"
-        "- Your FIRST message: a one-line professional greeting, then ask the candidate to "
-        "introduce themselves ('Tell me about yourself').\n"
-        "- Ask ONE question at a time, concise (1-2 sentences).\n"
-        "- If an answer is vague, generic, evasive, or too short, DO NOT let it slide: press the "
-        "candidate for specifics — a concrete example, their exact actions, or numbers — before "
-        "moving on.\n"
-        "- If an answer is solid, ask a natural follow-up that digs deeper, then advance to a new question.\n"
-        "- Stay neutral and professional; do NOT give praise, feedback, or scores during the interview."
+        "- Ask ONE question at a time. Keep it concise (a coding problem may be a little longer).\n"
+        "- Follow the ROUND instruction you are given for what to ask next.\n"
+        "- If an answer is vague, generic, or too short, press once for specifics before moving on.\n"
+        "- Stay professional. Do NOT give feedback or scores during the interview."
     )
     if resume.strip():
         base += (
-            "\n\nThe candidate's resume is below. Ask several questions grounded in their ACTUAL "
-            "projects, experience, and skills from it (e.g., 'You built X — walk me through the "
-            "hardest technical decision you made').\n"
+            "\n\nCandidate resume — tailor questions to their real experience where relevant:\n"
             "--- RESUME ---\n" + resume.strip()[:4000] + "\n--- END RESUME ---"
         )
     return base
 
 
+def _round_instruction(round_dict: dict, role: str, first_overall: bool) -> str:
+    instr = round_dict["instruction"].format(role=role)
+    if first_overall:
+        return instr + " Begin with a one-line professional greeting, then ask your first question."
+    return (
+        "The previous round is complete. " + instr +
+        " Start with a one-line transition announcing this new round, then ask your first question."
+    )
+
+
 def _complete(**kwargs):
-    """Call Groq with a few extra retries (on top of the SDK's) so a transient network
-    blip during an interview doesn't surface as an error to the user."""
+    """Call Groq with a few retries so a transient network blip doesn't surface as an error."""
     last_err = None
     for attempt in range(3):
         try:
             return get_client().chat.completions.create(**kwargs)
-        except Exception as exc:  # noqa: BLE001 - retry any transient failure
+        except Exception as exc:  # noqa: BLE001
             last_err = exc
             time.sleep(0.7 * (attempt + 1))
     raise last_err
 
 
 def _ask_model(messages: list[dict]) -> str:
-    """Send the conversation to Groq and return the model's reply text."""
-    resp = _complete(model=MODEL, messages=messages, temperature=0.7, max_tokens=250)
+    resp = _complete(model=MODEL, messages=messages, temperature=0.7, max_tokens=350)
     return resp.choices[0].message.content.strip()
 
 
-def start(role: str, mode: str = "mixed", resume: str = "") -> tuple[str, str, int, int]:
-    """Begin an interview. Returns (session_id, first_question, seconds, total_questions)."""
-    messages = [{"role": "system", "content": _system_prompt(role, mode, resume)}]
+def start(role: str, resume: str = "") -> tuple:
+    """Begin the interview. Returns (session_id, question, seconds, total_q, round_name, round_index)."""
+    messages = [{"role": "system", "content": _system_prompt(role, resume)}]
+    r = ROUNDS[0]
+    messages.append({"role": "system", "content": _round_instruction(r, role, first_overall=True)})
     question = _ask_model(messages)
     messages.append({"role": "assistant", "content": question})
 
     session_id = str(uuid.uuid4())
-    _sessions[session_id] = {"messages": messages, "count": 0, "role": role, "mode": mode}
-    return session_id, question, _seconds_for(mode, 0), MAX_QUESTIONS
+    _sessions[session_id] = {"messages": messages, "answered": 0, "role": role}
+    return session_id, question, r["seconds"], TOTAL_Q, r["name"], 1
 
 
-def answer(session_id: str, user_answer: str) -> tuple[str, bool, int, int]:
-    """Record the answer and get the interviewer's next line.
+def answer(session_id: str, user_answer: str) -> tuple:
+    """Record an answer and get the next line.
 
-    Returns (interviewer_message, done, question_number, seconds_for_next_question).
+    Returns (message, done, question_number, seconds, round_name, round_index).
     """
     session = _sessions.get(session_id)
     if session is None:
         raise KeyError("session not found")
 
     session["messages"].append({"role": "user", "content": user_answer})
-    session["count"] += 1
-    n = session["count"]
-    done = n >= MAX_QUESTIONS
+    session["answered"] += 1
+    n = session["answered"]
+    role = session["role"]
 
-    if done:
+    if n >= TOTAL_Q:
         session["messages"].append({
             "role": "system",
-            "content": "That was the final answer. Warmly thank the candidate in 1-2 sentences "
-                       "and tell them to request feedback. Do not ask another question.",
+            "content": "That was the final question. Warmly thank the candidate in 1-2 sentences and "
+                       "tell them to request their report. Do not ask another question.",
         })
+        reply = _ask_model(session["messages"])
+        session["messages"].append({"role": "assistant", "content": reply})
+        return reply, True, n, 0, ROUNDS[-1]["name"], TOTAL_ROUNDS
+
+    round_i, r, is_first = _round_of(n)  # the next question is index n
+    if is_first:
+        session["messages"].append({"role": "system", "content": _round_instruction(r, role, first_overall=False)})
 
     reply = _ask_model(session["messages"])
     session["messages"].append({"role": "assistant", "content": reply})
-    seconds = 0 if done else _seconds_for(session.get("mode", "mixed"), n)
-    return reply, done, n, seconds
+    return reply, False, n, r["seconds"], r["name"], round_i + 1
 
 
 _FEEDBACK_SYSTEM = (
-    "You are an expert interview coach. You are given a transcript of a mock interview. "
-    "Evaluate ONLY the candidate's answers, fairly and constructively. "
-    "Return strict JSON with this exact shape:\n"
+    "You are an expert interview coach. You are given a transcript of a 3-round mock interview "
+    "(Round 1 Technical theory, Round 2 Coding/pseudocode, Round 3 Behavioral). Evaluate ONLY the "
+    "candidate's answers, fairly and constructively. Return strict JSON with this exact shape:\n"
     "{\n"
     '  "overall_score": <integer 1-10>,\n'
     '  "summary": "<2-3 sentence overall assessment>",\n'
+    '  "rounds": [\n'
+    '    {"name": "Technical — Theory", "score": <1-10>, "note": "<short note>"},\n'
+    '    {"name": "Coding — Pseudocode", "score": <1-10>, "note": "<short note>"},\n'
+    '    {"name": "Behavioral", "score": <1-10>, "note": "<short note>"}\n'
+    "  ],\n"
     '  "strengths": ["<point>", "<point>"],\n'
-    '  "improvements": ["<actionable tip>", "<actionable tip>"],\n'
-    '  "dimensions": [\n'
-    '    {"name": "Communication", "score": <1-10>, "note": "<short note>"},\n'
-    '    {"name": "Structure (STAR)", "score": <1-10>, "note": "<short note>"},\n'
-    '    {"name": "Specificity", "score": <1-10>, "note": "<short note>"}\n'
-    "  ]\n"
+    '  "improvements": ["<actionable tip>", "<actionable tip>"]\n'
     "}\n"
     "Be honest but encouraging. Give concrete, specific advice a student can act on."
 )
 
 
 def _transcript(messages: list[dict]) -> str:
-    """Render the conversation as a plain Interviewer/Candidate transcript for scoring."""
     lines = []
     for m in messages:
         if m["role"] == "assistant":
@@ -162,7 +191,7 @@ def _transcript(messages: list[dict]) -> str:
 
 
 def feedback(session_id: str) -> dict:
-    """Score a completed interview and return structured, actionable feedback."""
+    """Score the completed 3-round interview and return a structured report."""
     session = _sessions.get(session_id)
     if session is None:
         raise KeyError("session not found")
@@ -174,7 +203,7 @@ def feedback(session_id: str) -> dict:
             {"role": "user", "content": "Transcript:\n\n" + _transcript(session["messages"])},
         ],
         temperature=0.3,
-        max_tokens=800,
-        response_format={"type": "json_object"},  # force valid JSON
+        max_tokens=900,
+        response_format={"type": "json_object"},
     )
     return json.loads(resp.choices[0].message.content)

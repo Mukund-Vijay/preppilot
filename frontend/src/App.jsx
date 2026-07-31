@@ -2,23 +2,20 @@ import { useEffect, useRef, useState } from 'react'
 import { api } from './api'
 
 const ROLES = ['Software Engineer', 'Data Analyst', 'Product Manager', 'Frontend Developer']
-const MODES = [
-  { id: 'mixed', label: 'Mixed', desc: 'Behavioral + technical' },
-  { id: 'behavioral', label: 'Behavioral', desc: 'Experience & teamwork' },
-  { id: 'technical', label: 'Technical', desc: 'Concepts & problem-solving' },
-]
 
 export default function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem('pp-theme') || 'light')
   const [stage, setStage] = useState('setup')
   const [role, setRole] = useState('Software Engineer')
-  const [mode, setMode] = useState('mixed')
   const [resume, setResume] = useState('')
   const [sessionId, setSessionId] = useState(null)
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [qNum, setQNum] = useState(0)
-  const [totalQ, setTotalQ] = useState(8)
+  const [totalQ, setTotalQ] = useState(9)
+  const [roundName, setRoundName] = useState('')
+  const [roundIndex, setRoundIndex] = useState(1)
+  const [totalRounds, setTotalRounds] = useState(3)
   const [done, setDone] = useState(false)
   const [busy, setBusy] = useState(false)
   const [feedback, setFeedback] = useState(null)
@@ -26,6 +23,8 @@ export default function App() {
   const [timeLeft, setTimeLeft] = useState(120)
   const [qSeconds, setQSeconds] = useState(120)
   const logRef = useRef(null)
+
+  const isCoding = roundIndex === 2
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -49,11 +48,12 @@ export default function App() {
   const startInterview = async () => {
     setBusy(true); setError(null)
     try {
-      const res = await api.start(role, mode, resume)
+      const res = await api.start(role, resume)
       setSessionId(res.session_id)
       setMessages([{ who: 'bot', text: res.question }])
-      setTotalQ(res.total_questions); setStage('interview'); setDone(false); setQNum(0)
-      setClock(res.seconds)
+      setTotalQ(res.total_questions); setTotalRounds(res.total_rounds)
+      setRoundName(res.round); setRoundIndex(res.round_index)
+      setStage('interview'); setDone(false); setQNum(0); setClock(res.seconds)
     } catch (e) { setError(e.message) } finally { setBusy(false) }
   }
 
@@ -67,6 +67,7 @@ export default function App() {
       const res = await api.answer(sessionId, answer)
       setMessages((m) => [...m, { who: 'bot', text: res.message }])
       setQNum(res.question_number); setDone(res.done)
+      setRoundName(res.round); setRoundIndex(res.round_index)
       if (!res.done) setClock(res.seconds)
     } catch (e) { setError(e.message) } finally { setBusy(false) }
   }
@@ -79,47 +80,35 @@ export default function App() {
 
   const reset = () => {
     setStage('setup'); setSessionId(null); setMessages([]); setInput('')
-    setQNum(0); setDone(false); setFeedback(null); setError(null); setClock(120)
+    setQNum(0); setDone(false); setFeedback(null); setError(null); setClock(120); setRoundIndex(1)
   }
 
-  const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() } }
+  const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey && !isCoding) { e.preventDefault(); submit() } }
 
   const mmss = `${String(Math.floor(Math.max(0, timeLeft) / 60)).padStart(2, '0')}:${String(Math.max(0, timeLeft) % 60).padStart(2, '0')}`
   const clockColor = timeLeft <= 10 ? '#c14b3f' : timeLeft <= 30 ? '#bf8b3a' : 'var(--ink)'
   const currentQ = Math.min(done ? qNum : qNum + 1, totalQ)
   const lastBotIndex = messages.map((m) => m.who).lastIndexOf('bot')
-
-  const Topbar = (
-    <div className="topbar">
-      <div className="brand">Prep<span>Pilot</span><span className="sub">AI Interview</span></div>
-      <button className="toggle" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-        title="Toggle theme" aria-label="Toggle light or dark mode">{theme === 'light' ? '☾' : '☀'}</button>
-    </div>
-  )
+  const rounds = feedback?.rounds || feedback?.dimensions || []
 
   return (
     <div className="shell">
-      {Topbar}
+      <div className="topbar">
+        <div className="brand">Prep<span>Pilot</span><span className="sub">AI Interview</span></div>
+        <button className="toggle" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+          title="Toggle theme" aria-label="Toggle light or dark mode">{theme === 'light' ? '☾' : '☀'}</button>
+      </div>
 
       {stage === 'setup' && (
         <div className="card">
-          <h2 className="intro-title">Practice under real interview pressure.</h2>
-          <p className="intro-sub">A timed, adaptive mock interview — it opens with your introduction, adapts to your answers, presses when they're vague, and scores you at the end.</p>
+          <h2 className="intro-title">A realistic 3-round mock interview.</h2>
+          <p className="intro-sub">Round 1 — technical theory (OOP, DBMS, networking, OS, DSA + your role). Round 2 — a coding question you solve in pseudocode. Round 3 — behavioral. A scored report at the end.</p>
 
           <label className="field-label">Role</label>
           <input value={role} onChange={(e) => setRole(e.target.value)} placeholder="e.g. Software Engineer" />
           <div className="opt-grid" style={{ marginTop: 10 }}>
             {ROLES.map((r) => (
               <button key={r} className={`opt ${role === r ? 'active' : ''}`} onClick={() => setRole(r)}>{r}</button>
-            ))}
-          </div>
-
-          <label className="field-label">Interview type</label>
-          <div className="opt-grid">
-            {MODES.map((m) => (
-              <button key={m.id} className={`opt ${mode === m.id ? 'active' : ''}`} onClick={() => setMode(m.id)}>
-                <div>{m.label}</div><div className="opt-desc">{m.desc}</div>
-              </button>
             ))}
           </div>
 
@@ -137,7 +126,10 @@ export default function App() {
       {stage === 'interview' && (
         <div className="card">
           <div className="room-top">
-            <div><div className="label">Interview in progress</div></div>
+            <div>
+              <div className="label">Round {roundIndex} of {totalRounds}</div>
+              <div className="round-name">{roundName}</div>
+            </div>
             {!done && <div className="clock"><div className="t" style={{ color: clockColor }}>{mmss}</div><div className="label">Time left</div></div>}
           </div>
 
@@ -160,15 +152,17 @@ export default function App() {
           {!done ? (
             <div className="composer">
               <div className="row">
-                <textarea value={input} rows={3} placeholder="Type your answer…"
+                <textarea value={input} rows={isCoding ? 6 : 3}
+                  className={isCoding ? 'code' : ''}
+                  placeholder={isCoding ? 'Write your pseudocode here… (focus on the logic, not syntax)' : 'Type your answer…'}
                   onChange={(e) => setInput(e.target.value)} onKeyDown={onKey} disabled={busy} />
                 <button className="btn" onClick={() => submit()} disabled={busy || !input.trim()}>Send</button>
               </div>
-              <div className="hint">Enter to send · Shift+Enter for a new line</div>
+              <div className="hint">{isCoding ? 'Pseudocode is fine — Shift+Enter for new lines, then Send.' : 'Enter to send · Shift+Enter for a new line'}</div>
             </div>
           ) : (
             <button className="btn full" onClick={getFeedback} disabled={busy}>
-              {busy ? <span className="spinner" /> : 'Finish & get my feedback'}
+              {busy ? <span className="spinner" /> : 'Finish & get my report'}
             </button>
           )}
           {error && <div className="error">{error}</div>}
@@ -177,15 +171,17 @@ export default function App() {
 
       {stage === 'feedback' && feedback && (
         <div className="card">
+          <div className="label" style={{ marginBottom: 14 }}>Interview report</div>
           <div className="fb-top">
             <div className="score-num">{feedback.overall_score}<small>/10</small></div>
             <div className="fb-summary">{feedback.summary}</div>
           </div>
 
-          {(feedback.dimensions || []).map((d, i) => (
+          {rounds.map((d, i) => (
             <div className="dim" key={i}>
               <div className="dim-top"><b>{d.name}</b><span>{d.score} / 10</span></div>
               <div className="bar-track"><div className="bar-fill" style={{ width: `${(d.score / 10) * 100}%` }} /></div>
+              {d.note && <div className="dim-note">{d.note}</div>}
             </div>
           ))}
 
