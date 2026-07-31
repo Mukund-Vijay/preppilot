@@ -40,7 +40,10 @@ ROUNDS = [
         "For this part, probe the candidate's TECHNICAL depth. Blend questions about their actual "
         "resume projects and decisions with core fundamentals (OOP, DBMS, networking, operating "
         "systems, DSA, and concepts central to the {role} role). Move fluidly between their real "
-        "experience and the underlying theory, and follow up on what they say."
+        "experience and the underlying theory, and follow up on what they say. "
+        "IMPORTANT: regardless of how project-focused the candidate's answers are, make sure at least "
+        "THREE questions in this part test pure fundamentals (OOP, DBMS, operating systems, "
+        "networking, or DSA) — not tied to their resume."
     )},
     {"key": "coding", "name": "Coding", "seconds": 300, "instruction": (
         "Now give the candidate ONE coding problem suitable for a {role}. Introduce it naturally "
@@ -112,11 +115,17 @@ def _round_instruction(round_dict: dict, role: str, first_overall: bool) -> str:
 
 
 def _complete(**kwargs):
+    from groq import RateLimitError
     last_err = None
     for attempt in range(3):
         try:
             return get_client().chat.completions.create(**kwargs)
-        except Exception as exc:  # noqa: BLE001
+        except RateLimitError as exc:  # hard limit — retrying won't help, fail fast with a clear message
+            raise RuntimeError(
+                "The free AI rate limit was reached (daily token cap). Please wait a few minutes "
+                "and try again, or add your own API key with a higher limit."
+            ) from exc
+        except Exception as exc:  # noqa: BLE001 - transient network blip, retry
             last_err = exc
             time.sleep(0.7 * (attempt + 1))
     raise last_err
