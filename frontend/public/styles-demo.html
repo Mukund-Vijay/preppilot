@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PrepPilot — Design Directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #33322e; padding: 40px 20px 80px; font-family: 'Inter', sans-serif; }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  .page-title { color: #fff; font-size: 15px; letter-spacing: 2px; text-transform: uppercase; text-align: center; margin-bottom: 32px; opacity: 0.7; }
+  .opt-label { color: #fff; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; margin: 40px 0 12px; opacity: 0.85; font-weight: 600; }
+  .opt-label:first-child { margin-top: 0; }
+
+  /* ============ 1. EDITORIAL / PRINT ============ */
+  .ed { background: #f7f3ea; color: #1a1613; padding: 30px 34px; border: 1px solid #1a1613; }
+  .ed-top { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1a1613; padding-bottom: 12px; }
+  .ed-mast { font-family: 'Fraunces', serif; font-weight: 900; font-size: 30px; letter-spacing: -1px; }
+  .ed-mast em { color: #b3271e; font-style: italic; }
+  .ed-meta { font-family: 'Fraunces', serif; font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; text-align: right; line-height: 1.5; }
+  .ed-qline { display: flex; justify-content: space-between; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin: 16px 0 10px; color: #6b6258; }
+  .ed-q { font-family: 'Fraunces', serif; font-size: 21px; line-height: 1.35; margin-bottom: 22px; }
+  .ed-input { border: 1px solid #b8ae9e; background: #fffdf8; padding: 14px 16px; font-family: 'Fraunces', serif; font-size: 15px; color: #8a8175; }
+  .ed-row { display: flex; gap: 14px; margin-top: 14px; align-items: center; }
+  .ed-btn { background: #b3271e; color: #f7f3ea; padding: 12px 26px; font-family: 'Fraunces', serif; font-weight: 600; font-size: 14px; letter-spacing: 0.5px; }
+  .ed-rule { flex: 1; height: 1px; background: #1a1613; }
+
+  /* ============ 2. NEO-BRUTALIST ============ */
+  .br { background: #f4f1e9; color: #16130c; padding: 28px; border: 3px solid #16130c; box-shadow: 8px 8px 0 #16130c; font-family: 'Space Grotesk', sans-serif; }
+  .br-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .br-mast { font-weight: 700; font-size: 26px; letter-spacing: -1px; }
+  .br-mast span { background: #c3f73a; padding: 0 6px; border: 2px solid #16130c; }
+  .br-timer { border: 3px solid #16130c; background: #c3f73a; padding: 6px 14px; font-weight: 700; font-size: 20px; box-shadow: 3px 3px 0 #16130c; }
+  .br-tag { display: inline-block; background: #16130c; color: #f4f1e9; font-weight: 700; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; padding: 5px 10px; margin-bottom: 14px; }
+  .br-q { border: 3px solid #16130c; padding: 16px 18px; font-size: 18px; font-weight: 500; line-height: 1.4; background: #fff; }
+  .br-row { display: flex; gap: 14px; margin-top: 16px; }
+  .br-input { flex: 1; border: 3px solid #16130c; padding: 13px 15px; font-family: inherit; font-size: 15px; color: #8b8577; background: #fff; }
+  .br-btn { background: #c3f73a; border: 3px solid #16130c; box-shadow: 4px 4px 0 #16130c; padding: 0 26px; font-weight: 700; font-size: 15px; text-transform: uppercase; }
+
+  /* ============ 3. TERMINAL / MONO ============ */
+  .tm { background: #17150f; color: #d9d5c8; padding: 26px 28px; border: 1px solid #3a3526; font-family: 'JetBrains Mono', monospace; }
+  .tm-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #3a3526; padding-bottom: 12px; margin-bottom: 16px; }
+  .tm-mast { font-weight: 700; font-size: 18px; color: #e8a33d; }
+  .tm-mast::before { content: '$ '; color: #7ec96f; }
+  .tm-meta { font-size: 12px; color: #6f6a58; }
+  .tm-q-label { font-size: 11px; color: #7ec96f; margin-bottom: 6px; }
+  .tm-q { font-size: 15px; line-height: 1.55; margin-bottom: 18px; color: #eae7db; }
+  .tm-q::before { content: '> '; color: #e8a33d; }
+  .tm-input { border: 1px solid #3a3526; background: #12100b; padding: 12px 14px; font-family: inherit; font-size: 13px; color: #6f6a58; }
+  .tm-cursor { display: inline-block; width: 8px; height: 15px; background: #e8a33d; vertical-align: -2px; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .tm-row { display: flex; gap: 12px; margin-top: 14px; align-items: center; }
+  .tm-btn { border: 1px solid #e8a33d; color: #e8a33d; background: transparent; padding: 10px 22px; font-family: inherit; font-size: 13px; font-weight: 500; }
+  .tm-btn::before { content: '[ '; } .tm-btn::after { content: ' ]'; }
+
+  /* ============ 4. SWISS MINIMAL ============ */
+  .sw { background: #fff; color: #111; padding: 34px 36px; border: 1px solid #e6e6e6; font-family: 'Inter', sans-serif; }
+  .sw-top { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #111; padding-bottom: 14px; }
+  .sw-mast { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+  .sw-mast span { color: #e5241d; }
+  .sw-meta { font-size: 12px; font-weight: 500; letter-spacing: 0.5px; color: #999; text-transform: uppercase; }
+  .sw-num { font-size: 13px; font-weight: 600; color: #e5241d; letter-spacing: 1px; margin: 22px 0 8px; }
+  .sw-q { font-size: 24px; font-weight: 600; line-height: 1.3; letter-spacing: -0.5px; margin-bottom: 26px; max-width: 90%; }
+  .sw-input { border: none; border-bottom: 1.5px solid #ccc; padding: 10px 0; font-family: inherit; font-size: 16px; color: #aaa; }
+  .sw-row { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; }
+  .sw-btn { background: #111; color: #fff; padding: 12px 30px; font-weight: 600; font-size: 14px; }
+  .sw-clock { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="page-title">PrepPilot · four design directions</div>
+
+  <!-- 1. EDITORIAL -->
+  <div class="opt-label">Option 1 — Editorial / Print</div>
+  <div class="ed">
+    <div class="ed-top">
+      <div class="ed-mast">Prep<em>Pilot</em></div>
+      <div class="ed-meta">The Mock Interview<br>Vol. 1 — Software Engineer</div>
+    </div>
+    <div class="ed-qline"><span>Question II of VIII</span><span>Time — 01:47</span></div>
+    <div class="ed-q">Tell me about a time you optimized a slow system. Walk me through the specific bottleneck you found.</div>
+    <div class="ed-input">Type your answer…</div>
+    <div class="ed-row"><div class="ed-rule"></div><div class="ed-btn">Submit Answer</div></div>
+  </div>
+
+  <!-- 2. BRUTALIST -->
+  <div class="opt-label">Option 2 — Neo-Brutalist</div>
+  <div class="br">
+    <div class="br-top">
+      <div class="br-mast">Prep<span>Pilot</span></div>
+      <div class="br-timer">01:47</div>
+    </div>
+    <div class="br-tag">Question 2 / 8 · Live</div>
+    <div class="br-q">Tell me about a time you optimized a slow system. Walk me through the specific bottleneck you found.</div>
+    <div class="br-row"><div class="br-input">Type your answer…</div><div class="br-btn">Send</div></div>
+  </div>
+
+  <!-- 3. TERMINAL -->
+  <div class="opt-label">Option 3 — Terminal / Mono</div>
+  <div class="tm">
+    <div class="tm-top">
+      <div class="tm-mast">preppilot</div>
+      <div class="tm-meta">q2/8 · role=SWE · t-01:47</div>
+    </div>
+    <div class="tm-q-label">// interviewer</div>
+    <div class="tm-q">Tell me about a time you optimized a slow system. Walk me through the specific bottleneck you found.</div>
+    <div class="tm-input">answer: <span class="tm-cursor"></span></div>
+    <div class="tm-row"><div class="tm-btn">send</div><span style="color:#6f6a58;font-size:12px;">enter to submit</span></div>
+  </div>
+
+  <!-- 4. SWISS -->
+  <div class="opt-label">Option 4 — Swiss Minimal</div>
+  <div class="sw">
+    <div class="sw-top">
+      <div class="sw-mast">Prep<span>Pilot</span></div>
+      <div class="sw-meta">Software Engineer</div>
+    </div>
+    <div class="sw-num">02 / 08</div>
+    <div class="sw-q">Tell me about a time you optimized a slow system.</div>
+    <div class="sw-input">Type your answer…</div>
+    <div class="sw-row"><div class="sw-clock">01:47</div><div class="sw-btn">Send</div></div>
+  </div>
+</div>
+</body>
+</html>

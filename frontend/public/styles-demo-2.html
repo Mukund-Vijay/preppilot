@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PrepPilot — Fresh Directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700;900&family=Archivo+Black&family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #33322e; padding: 40px 20px 80px; font-family: 'Archivo', sans-serif; }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  .page-title { color: #fff; font-size: 15px; letter-spacing: 2px; text-transform: uppercase; text-align: center; margin-bottom: 8px; opacity: 0.7; }
+  .page-sub { color: #fff; font-size: 12px; text-align: center; margin-bottom: 34px; opacity: 0.4; }
+  .opt-label { color: #fff; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; margin: 42px 0 12px; opacity: 0.85; font-weight: 700; }
+  .opt-label:first-of-type { margin-top: 0; }
+  .opt-label small { opacity: 0.5; font-weight: 400; text-transform: none; letter-spacing: 0; }
+
+  /* ============ A. AVIATION / BOARDING PASS ============ */
+  .av { display: flex; background: #fbfaf7; color: #0b2545; font-family: 'IBM Plex Mono', monospace; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.35); }
+  .av-main { flex: 1; padding: 24px 26px; }
+  .av-head { display: flex; justify-content: space-between; font-size: 11px; letter-spacing: 1.5px; color: #6b7a90; border-bottom: 1px solid #d5ddE8; padding-bottom: 10px; }
+  .av-mast { font-family: 'Archivo Black', sans-serif; font-size: 28px; letter-spacing: -1px; margin: 14px 0 4px; }
+  .av-mast span { color: #e63946; }
+  .av-fields { display: flex; gap: 24px; font-size: 11px; letter-spacing: 1px; margin-bottom: 18px; }
+  .av-fields b { display: block; color: #6b7a90; font-weight: 500; margin-bottom: 3px; }
+  .av-fields span { font-size: 14px; font-weight: 600; }
+  .av-q { font-family: 'Archivo', sans-serif; font-size: 17px; line-height: 1.45; font-weight: 500; margin-bottom: 16px; }
+  .av-input { border: 1px dashed #b7c2d1; background: #fff; padding: 12px 14px; font-size: 13px; color: #9aa7b8; border-radius: 6px; }
+  .av-bar { height: 34px; margin-top: 16px; background: repeating-linear-gradient(90deg, #0b2545 0 2px, transparent 2px 3px, #0b2545 3px 4px, transparent 4px 7px); }
+  .av-stub { width: 168px; background: #0b2545; color: #fbfaf7; padding: 22px 18px; border-left: 2px dashed #fff; position: relative; text-align: center; }
+  .av-stub::before, .av-stub::after { content: ''; position: absolute; left: -11px; width: 20px; height: 20px; border-radius: 50%; background: #33322e; }
+  .av-stub::before { top: -10px; } .av-stub::after { bottom: -10px; }
+  .av-stub .lbl { font-size: 10px; letter-spacing: 1.5px; color: #7d90ab; }
+  .flap { display: inline-flex; gap: 3px; margin: 8px 0; }
+  .flap b { background: #05192e; color: #ffd23f; font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 24px; padding: 6px 5px; border-radius: 4px; border-top: 1px solid #2a3f57; position: relative; }
+  .flap b::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: rgba(0,0,0,0.5); }
+  .av-btn { margin-top: 14px; background: #e63946; color: #fff; border: none; width: 100%; padding: 11px; font-family: 'Archivo', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 1px; border-radius: 6px; }
+
+  /* ============ B. BLUEPRINT / DRAFTING ============ */
+  .bp { background: #103a5c; color: #dbe9f5; padding: 26px 28px; position: relative; font-family: 'IBM Plex Mono', monospace;
+        background-image: linear-gradient(#ffffff14 1px, transparent 1px), linear-gradient(90deg, #ffffff14 1px, transparent 1px); background-size: 22px 22px; border: 1px solid #3f6f96; }
+  .bp-top { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #6a9cc4; padding-bottom: 12px; }
+  .bp-mast { font-family: 'Archivo', sans-serif; font-weight: 900; font-size: 26px; letter-spacing: 0.5px; }
+  .bp-mast span { color: #ffd23f; }
+  .bp-block { border: 1px solid #6a9cc4; font-size: 10px; letter-spacing: 1px; text-align: right; }
+  .bp-block div { padding: 3px 8px; border-bottom: 1px solid #6a9cc4; } .bp-block div:last-child { border: none; color: #ffd23f; }
+  .bp-tag { font-size: 11px; letter-spacing: 2px; color: #8fb8d8; margin: 16px 0 6px; }
+  .bp-q { font-size: 15px; line-height: 1.6; margin-bottom: 8px; color: #f0f7ff; }
+  .bp-dim { border-top: 1px dashed #6a9cc4; font-size: 10px; color: #8fb8d8; padding-top: 4px; margin-bottom: 16px; text-align: center; letter-spacing: 2px; }
+  .bp-row { display: flex; gap: 12px; }
+  .bp-input { flex: 1; border: 1px solid #6a9cc4; background: #ffffff10; padding: 11px 13px; font-family: inherit; font-size: 13px; color: #9cc0dd; }
+  .bp-btn { border: 1px solid #ffd23f; color: #ffd23f; background: transparent; padding: 0 24px; font-family: inherit; font-size: 13px; letter-spacing: 1px; }
+
+  /* ============ C. RISOGRAPH / 2-COLOR ============ */
+  .ri { background: #f3ede0; padding: 26px 28px; position: relative; overflow: hidden; font-family: 'Archivo', sans-serif; border: 2px solid #ff3d7f; }
+  .ri-blob { position: absolute; border-radius: 50%; mix-blend-mode: multiply; opacity: 0.85; }
+  .ri-top { display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 2; }
+  .ri-mast { font-family: 'Archivo Black', sans-serif; font-size: 28px; color: #2f38ff; letter-spacing: -1px; }
+  .ri-mast span { color: #ff3d7f; }
+  .ri-timer { background: #ff3d7f; color: #fff; font-weight: 700; font-size: 20px; padding: 4px 14px; transform: rotate(-2deg); }
+  .ri-tag { display: inline-block; background: #2f38ff; color: #fff; font-size: 11px; font-weight: 700; letter-spacing: 1px; padding: 4px 10px; margin: 16px 0 12px; position: relative; z-index: 2; text-transform: uppercase; }
+  .ri-q { font-size: 19px; font-weight: 700; line-height: 1.4; color: #241c2c; margin-bottom: 18px; position: relative; z-index: 2; max-width: 82%; }
+  .ri-row { display: flex; gap: 12px; position: relative; z-index: 2; }
+  .ri-input { flex: 1; border: 2px solid #2f38ff; background: #fff; padding: 12px 14px; font-family: inherit; font-size: 14px; color: #8b86a0; }
+  .ri-btn { background: #2f38ff; color: #fff; border: none; padding: 0 26px; font-weight: 700; font-size: 14px; text-transform: uppercase; }
+
+  /* ============ D. BAUHAUS / GEOMETRIC ============ */
+  .bh { background: #f2ede3; color: #1a1a1a; padding: 0; font-family: 'Poppins', sans-serif; display: flex; border: 2px solid #1a1a1a; }
+  .bh-rail { width: 64px; background: #e63b1e; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 18px 0; }
+  .bh-rail .circ { width: 30px; height: 30px; border-radius: 50%; background: #f5c400; }
+  .bh-rail .tri { width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-bottom: 26px solid #1e3ae6; }
+  .bh-rail .sq { width: 28px; height: 28px; background: #1a1a1a; }
+  .bh-body { flex: 1; padding: 24px 28px; }
+  .bh-top { display: flex; justify-content: space-between; align-items: baseline; }
+  .bh-mast { font-weight: 800; font-size: 26px; letter-spacing: -0.5px; }
+  .bh-mast span { color: #e63b1e; }
+  .bh-timer { font-weight: 700; font-size: 22px; color: #1e3ae6; font-variant-numeric: tabular-nums; }
+  .bh-tag { font-size: 12px; font-weight: 600; letter-spacing: 1px; color: #666; margin: 18px 0 8px; text-transform: uppercase; }
+  .bh-q { font-size: 21px; font-weight: 600; line-height: 1.35; margin-bottom: 22px; }
+  .bh-row { display: flex; gap: 14px; align-items: center; }
+  .bh-input { flex: 1; border: 2px solid #1a1a1a; padding: 12px 14px; font-family: inherit; font-size: 14px; color: #999; }
+  .bh-btn { background: #1e3ae6; color: #fff; border: none; padding: 13px 26px; font-weight: 700; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="page-title">PrepPilot · four FRESH directions</div>
+  <div class="page-sub">less "seen it before" — including one that plays off the name ✈</div>
+
+  <!-- A. AVIATION -->
+  <div class="opt-label">Option A — Aviation / Boarding Pass <small>(on-brand: PrepPilot ✈)</small></div>
+  <div class="av">
+    <div class="av-main">
+      <div class="av-head"><span>PREPPILOT AIRWAYS ✈</span><span>BOARDING PASS</span></div>
+      <div class="av-mast">Prep<span>Pilot</span></div>
+      <div class="av-fields">
+        <div><b>ROLE</b><span>SWE</span></div>
+        <div><b>QUESTION</b><span>02 / 08</span></div>
+        <div><b>STATUS</b><span>LIVE</span></div>
+      </div>
+      <div class="av-q">Tell me about a time you optimized a slow system. Walk me through the bottleneck.</div>
+      <div class="av-input">Type your answer…</div>
+      <div class="av-bar"></div>
+    </div>
+    <div class="av-stub">
+      <div class="lbl">BOARDING IN</div>
+      <div class="flap"><b>0</b><b>1</b><b>:</b><b>4</b><b>7</b></div>
+      <div class="lbl">MIN &nbsp; SEC</div>
+      <button class="av-btn">SEND ➜</button>
+    </div>
+  </div>
+
+  <!-- B. BLUEPRINT -->
+  <div class="opt-label">Option B — Blueprint / Drafting</div>
+  <div class="bp">
+    <div class="bp-top">
+      <div class="bp-mast">Prep<span>Pilot</span></div>
+      <div class="bp-block"><div>DRAWING: INTERVIEW</div><div>ROLE: SWE</div><div>SHEET 02 / 08</div></div>
+    </div>
+    <div class="bp-tag">// INTERVIEWER — Q.02</div>
+    <div class="bp-q">Tell me about a time you optimized a slow system. Walk me through the specific bottleneck you found.</div>
+    <div class="bp-dim">|&lt;————————— 01:47 remaining —————————&gt;|</div>
+    <div class="bp-row"><div class="bp-input">Type your answer…</div><div class="bp-btn">SEND</div></div>
+  </div>
+
+  <!-- C. RISOGRAPH -->
+  <div class="opt-label">Option C — Risograph / 2-Colour Print</div>
+  <div class="ri">
+    <div class="ri-blob" style="width:150px;height:150px;background:#ffd23f;top:-40px;right:60px;"></div>
+    <div class="ri-blob" style="width:110px;height:110px;background:#2f38ff;bottom:-30px;right:-20px;"></div>
+    <div class="ri-top">
+      <div class="ri-mast">Prep<span>Pilot</span></div>
+      <div class="ri-timer">01:47</div>
+    </div>
+    <div class="ri-tag">Question 02 / 08 · Live</div>
+    <div class="ri-q">Tell me about a time you optimized a slow system.</div>
+    <div class="ri-row"><div class="ri-input">Type your answer…</div><div class="ri-btn">Send</div></div>
+  </div>
+
+  <!-- D. BAUHAUS -->
+  <div class="opt-label">Option D — Bauhaus / Geometric</div>
+  <div class="bh">
+    <div class="bh-rail"><div class="circ"></div><div class="tri"></div><div class="sq"></div></div>
+    <div class="bh-body">
+      <div class="bh-top">
+        <div class="bh-mast">Prep<span>Pilot</span></div>
+        <div class="bh-timer">01:47</div>
+      </div>
+      <div class="bh-tag">Question 02 / 08 — Live</div>
+      <div class="bh-q">Tell me about a time you optimized a slow system.</div>
+      <div class="bh-row"><div class="bh-input">Type your answer…</div><div class="bh-btn">Send</div></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

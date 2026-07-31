@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PrepPilot — Professional (Dark Mode)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #23211f; --card: #2b2926; --sage: #6f8f72; --sage-hover: #7d9c80;
+    --sage-accent: #87a48a; --ink: #eae7df; --muted: #97928a; --border: #38352f; --track: #322f2b;
+  }
+  body { background: var(--bg); font-family: 'Inter', sans-serif; color: var(--ink);
+         padding: 46px 20px 90px; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 700px; margin: 0 auto; }
+  .note { text-align: center; color: var(--muted); font-size: 11px; letter-spacing: 2px;
+          text-transform: uppercase; margin-bottom: 26px; }
+  .label { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--sage-accent); font-weight: 600; }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+          padding: 30px 32px; margin-bottom: 22px; }
+
+  .top { display: flex; justify-content: space-between; align-items: flex-start;
+         border-bottom: 1px solid var(--border); padding-bottom: 18px; margin-bottom: 20px; }
+  .brand { font-size: 21px; font-weight: 700; letter-spacing: -0.4px; }
+  .brand span { color: var(--sage-accent); }
+  .brand .sub { display: block; font-size: 11px; font-weight: 500; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--muted); margin-top: 3px; }
+  .clock { text-align: right; }
+  .clock .t { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: 0.5px; }
+
+  .prog-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .prog-track { height: 3px; background: var(--track); border-radius: 3px; overflow: hidden; margin-bottom: 26px; }
+  .prog-fill { height: 100%; background: var(--sage); width: 25%; }
+
+  .q-label { margin-bottom: 10px; }
+  .question { font-size: 20px; font-weight: 500; line-height: 1.5; margin-bottom: 26px; max-width: 94%; }
+
+  textarea { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 15px 16px;
+    font-family: inherit; font-size: 15px; color: var(--ink); background: #1d1b19; resize: none; line-height: 1.6; }
+  textarea::placeholder { color: var(--muted); }
+  textarea:focus { outline: none; border-color: var(--sage); }
+  .actions { display: flex; align-items: center; gap: 16px; margin-top: 18px; }
+  .btn { background: var(--sage); color: #17201a; border: none; font-family: inherit; font-weight: 600;
+    font-size: 15px; padding: 12px 30px; border-radius: 8px; cursor: pointer; letter-spacing: 0.2px; }
+  .btn:hover { background: var(--sage-hover); }
+  .btn-ghost { background: transparent; color: var(--muted); padding: 12px 8px; }
+  .actions .hint { margin-left: auto; font-size: 12px; color: var(--muted); }
+
+  .fb-top { display: flex; align-items: center; gap: 26px; padding-bottom: 22px;
+    border-bottom: 1px solid var(--border); margin-bottom: 22px; }
+  .score-num { font-size: 52px; font-weight: 700; letter-spacing: -2px; line-height: 1; }
+  .score-num small { font-size: 20px; color: var(--muted); font-weight: 500; letter-spacing: 0; }
+  .fb-summary { font-size: 15px; line-height: 1.6; color: var(--ink); }
+  .dim { margin: 16px 0; }
+  .dim-top { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 7px; }
+  .dim-top b { font-weight: 600; } .dim-top span { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .bar-track { height: 6px; background: var(--track); border-radius: 6px; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--sage); border-radius: 6px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 26px; }
+  .cols h4 { margin-bottom: 12px; }
+  .cols ul { list-style: none; }
+  .cols li { font-size: 14px; line-height: 1.55; color: var(--ink); padding-left: 16px; position: relative; margin-bottom: 9px; }
+  .cols li::before { content: ''; position: absolute; left: 0; top: 9px; width: 6px; height: 1.5px; background: var(--sage); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="note">PrepPilot · professional concept — dark mode</div>
+
+  <div class="card">
+    <div class="top">
+      <div class="brand">Prep<span>Pilot</span><span class="sub">AI Interview</span></div>
+      <div class="clock"><div class="t">01:47</div><div class="label">Time left</div></div>
+    </div>
+
+    <div class="prog-row">
+      <span class="label">Software Engineer</span>
+      <span class="label">Question 02 / 08</span>
+    </div>
+    <div class="prog-track"><div class="prog-fill"></div></div>
+
+    <div class="label q-label">Interviewer</div>
+    <div class="question">Tell me about a time you optimized a slow system. Walk me through the specific bottleneck you identified and how you resolved it.</div>
+
+    <textarea rows="4" placeholder="Type your answer…"></textarea>
+    <div class="actions">
+      <button class="btn">Send</button>
+      <button class="btn btn-ghost">Skip</button>
+      <span class="hint">Enter to send</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="fb-top">
+      <div class="score-num">8<small>/10</small></div>
+      <div class="fb-summary">Clear, well-structured answers with strong specifics. Quantifying outcomes more consistently would sharpen your responses further.</div>
+    </div>
+
+    <div class="dim">
+      <div class="dim-top"><b>Communication</b><span>8 / 10</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:80%"></div></div>
+    </div>
+    <div class="dim">
+      <div class="dim-top"><b>Structure (STAR)</b><span>7 / 10</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:70%"></div></div>
+    </div>
+    <div class="dim">
+      <div class="dim-top"><b>Specificity</b><span>9 / 10</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:90%"></div></div>
+    </div>
+
+    <div class="cols">
+      <div>
+        <h4 class="label">Strengths</h4>
+        <ul>
+          <li>Concrete examples with clear technical detail.</li>
+          <li>Logical, easy-to-follow structure.</li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="label">To improve</h4>
+        <ul>
+          <li>Quantify results with numbers where possible.</li>
+          <li>Tighten longer answers to stay focused.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
